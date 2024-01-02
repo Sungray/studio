@@ -32,7 +32,8 @@
       "convertPackToFs": "Convert this story pack to FS format (v2.x)",
       "editPack": "Open this story pack in editor",
       "removePack": "Remove this story pack from library",
-      "addPack": "Add a story pack to the library"
+      "addPack": "Add a story pack to the library",
+      "transferAllPacks": "Transfer missing packs to the device"
     },
     "official": "Official",
     "format": {
