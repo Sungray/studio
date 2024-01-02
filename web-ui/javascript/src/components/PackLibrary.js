@@ -508,8 +508,11 @@ class PackLibrary extends React.Component {
                             <span title={t('library.local.addPack')}
                                   className="btn btn-default glyphicon glyphicon-import"
                                   onClick={this.showAddFileSelector}/>
-                            <button className="library-action"
-                                    onClick={this.transferAllPacksToDevice}>{t('library.local.transferAllPacks')}</button>
+                            {this.state.device.metadata && (
+                                <button className="library-action" onClick={this.transferAllPacksToDevice}>
+                                    {t('library.local.transferAllPacks')}
+                                </button>
+                            )}
                         </div>
                         <div className="editor-actions">
                             <p>
