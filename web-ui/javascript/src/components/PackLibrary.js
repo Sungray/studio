@@ -128,18 +128,34 @@ class PackLibrary extends React.Component {
 
 
 
-    onDropPackIntoDevice = (event) => {
+    onDropPackIntoDevice = async (event) => {
         event.preventDefault();
+
+        // Retrieve the pack data from the event
         let packData = event.dataTransfer.getData("local-library-pack");
         if (!packData) {
             return;
         }
 
+        // Parse the data and extract the pack
         var data = JSON.parse(packData);
-        var pack = data.packs[0];
 
-        this.processAndTransferPack(pack);
+        // Check if the data contains packs and if the first pack is valid
+        if (data.packs && data.packs.length > 0) {
+            var pack = data.packs[0];
+
+            // Process and transfer the pack
+            try {
+                await this.processAndTransferPack(pack);
+            } catch (error) {
+                console.error(`Error processing pack ${pack.uuid}:`, error);
+            }
+        } else {
+            // Log an error or handle the case where the data is not in the expected format
+            console.error("Invalid pack data dropped into device.");
+        }
     };
+
 
 
 
