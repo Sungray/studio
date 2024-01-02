@@ -8,6 +8,7 @@ import React from 'react';
 import { connect } from 'react-redux';
 import {withTranslation} from "react-i18next";
 import {toast} from "react-toastify";
+import { mutex } from '../actions'; // Use the correct relative path
 
 import {
     actionAddFromLibrary,
@@ -76,60 +77,82 @@ class PackLibrary extends React.Component {
             library: nextProps.library
         });
     }
+    processAndTransferPack = async (pack) => {
+        let release;
+        try {
+            release = await mutex.acquire();
+
+            var compatiblePack = pack.format === this.state.device.metadata.driver ? pack : null;
+            var latestPack = pack;
+
+            if (compatiblePack == null) {
+                await this.props.convertPackInLibrary(latestPack.uuid, latestPack.path, this.state.device.metadata.driver, this.props.settings.allowEnriched, this.context);
+                await this.doAddToDevice({...latestPack, format: this.state.device.metadata.driver});
+            } else if (latestPack.timestamp > compatiblePack.timestamp) {
+                await this.props.convertPackInLibrary(latestPack.uuid, latestPack.path, this.state.device.metadata.driver, this.props.settings.allowEnriched, this.context);
+                await this.doAddToDevice(latestPack);
+            } else {
+                await this.doAddToDevice(compatiblePack, compatiblePack.path);
+            }
+        } catch (error) {
+            console.error(`Error processing pack ${pack.uuid}:`, error);
+        } finally {
+            if (release) {
+                release();
+            }
+        }
+    };
+
+    transferAllPacksToDevice = async () => {
+        for (const group of this.state.library.packs) {
+            for (const pack of group.packs) {
+                // Check if pack is already on the device
+                const packExistsOnDevice = this.state.device.packs.some(devicePack => devicePack.uuid === pack.uuid);
+
+                if (!packExistsOnDevice) {
+                    try {
+                        await this.processAndTransferPack(pack);
+                        // Optionally, add a delay here to ensure the UI has time to update
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    } catch (error) {
+                        console.error(`Error processing pack ${pack.uuid}:`, error);
+                    }
+                } else {
+                    console.log(`Pack ${pack.uuid} already exists on the device, skipping transfer.`);
+                }
+            }
+        }
+
+        // Consider adding additional logic here if you need to perform actions after all transfers are complete
+    };
+
+
 
     onDropPackIntoDevice = (event) => {
         event.preventDefault();
         let packData = event.dataTransfer.getData("local-library-pack");
         if (!packData) {
-            // Ignore missing node data
             return;
         }
+
         var data = JSON.parse(packData);
+        var pack = data.packs[0];
 
-        // Get the latest pack
-        var latestPack = data.packs[0];
-        console.log('latest pack: %o', latestPack);
-        // Get the latest device-compatible pack
-        var compatiblePack = data.packs.find(p => p.format === this.state.device.metadata.driver);
-        console.log('device-compatible pack: %o', compatiblePack);
+        this.processAndTransferPack(pack);
+    };
 
-        if (compatiblePack == null) {   // No compatible pack: convert latest pack
-            console.log('latest pack must be converted for driver: %s', this.state.device.metadata.driver);
-            // Ask for enriched raw format preference
-            if (this.state.device.metadata.driver === 'raw' && localStorage.getItem(LOCAL_STORAGE_ALLOW_ENRICHED_BINARY_FORMAT) === null) {
-                this.setState({
-                    allowEnrichedDialog: {
-                        show: true,
-                        data: { pack: {...latestPack, format: this.state.device.metadata.driver}, format: this.state.device.metadata.driver, addToDevice: true }
-                    }
-                });
-            } else {
-                // Pack is converted and stored in the local library, then transferred to the device
-                this.props.convertPackInLibrary(latestPack.uuid, latestPack.path, this.state.device.metadata.driver, this.props.settings.allowEnriched, this.context)
-                    .then(path => {
-                        this.doAddToDevice({...latestPack, format: this.state.device.metadata.driver}, path);
-                    });
-            }
-        } else if (latestPack.timestamp > compatiblePack.timestamp) {   // Compatible pack is not the latest pack: confirm re-conversion
-            // Ask for conversion confirmation
-            console.log('pack is out of date. re-convert from latest ?');
-            this.setState({
-                confirmConversionDialog: {
-                    show: true,
-                    data: { pack: {...latestPack, format: this.state.device.metadata.driver}, format: this.state.device.metadata.driver }
-                }
-            });
-        } else {
-            console.log('OK, transferring pack: %o', compatiblePack);
-            // OK, go on and transfer pack
-            this.doAddToDevice(compatiblePack, compatiblePack.path);
+
+
+
+    doAddToDevice = async (data, path) => {
+        // Transfer pack and show progress
+        try {
+            await this.props.addFromLibrary(data.uuid, path, data.format, this.state.device.metadata.driver, this.context);
+        } catch (error) {
+            console.error('Error adding pack to device:', error);
         }
     };
 
-    doAddToDevice = (data, path) => {
-        // Transfer pack and show progress
-        this.props.addFromLibrary(data.uuid, path, data.format, this.state.device.metadata.driver, this.context);
-    };
 
     dismissEnrichedDialog = (allow) => {
         return () => {
@@ -477,16 +500,31 @@ class PackLibrary extends React.Component {
                 {this.state.library && <div className="local-library">
                     <div className="header">
                         <h4>{t('library.local.title')}</h4>
-                        {this.state.library.metadata && <div><strong>{t('library.local.path')}</strong> {this.state.library.metadata.path}</div>}
-                        <input type="file" id="upload" style={{visibility: 'hidden', position: 'absolute'}} onChange={this.packAddFileSelected} />
-                        <span title={t('library.local.addPack')} className="btn btn-default glyphicon glyphicon-import" onClick={this.showAddFileSelector}/>
+                        {this.state.library.metadata &&
+                            <div><strong>{t('library.local.path')}</strong> {this.state.library.metadata.path}</div>}
+                        <input type="file" id="upload" style={{visibility: 'hidden', position: 'absolute'}}
+                               onChange={this.packAddFileSelected}/>
+                        <div className={"editor-actions"}>
+                            <span title={t('library.local.addPack')}
+                                  className="btn btn-default glyphicon glyphicon-import"
+                                  onClick={this.showAddFileSelector}/>
+                            <button className="library-action"
+                                    onClick={this.transferAllPacksToDevice}>{t('library.local.transferAllPacks')}</button>
+                        </div>
                         <div className="editor-actions">
-                            <p><button className="library-action" onClick={this.onCreateNewPackInEditor}>{t('library.local.empty.link1')}</button> <button className="library-action" onClick={this.onOpenSamplePackInEditor}>{t('library.local.empty.link2')}</button> {t('library.local.empty.suffix')}</p>
+                            <p>
+                                <button className="library-action"
+                                        onClick={this.onCreateNewPackInEditor}>{t('library.local.empty.link1')}</button>
+                                <button className="library-action"
+                                        onClick={this.onOpenSamplePackInEditor}>{t('library.local.empty.link2')}</button>
+                                {t('library.local.empty.suffix')}</p>
                         </div>
                     </div>
                     <div className="library-dropzone"
                          onDrop={this.onDropPackIntoLibrary}
-                         onDragOver={event => { event.preventDefault(); }}>
+                         onDragOver={event => {
+                             event.preventDefault();
+                         }}>
                         {this.state.library.packs.length === 0 && <div className="empty">
                             <p>{t('library.local.empty.header')}</p>
                         </div>}

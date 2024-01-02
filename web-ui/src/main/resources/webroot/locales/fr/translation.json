@@ -32,7 +32,8 @@
       "convertPackToFs": "Convertir ce pack d'histoires au format FS (v2.x)",
       "editPack": "Ouvrir ce pack d'histoires dans l'éditeur",
       "removePack": "Supprimer ce pack d'histoires de la bibliothèque",
-      "addPack": "Ajouter un pack d'histoires à la bibliothèque"
+      "addPack": "Ajouter un pack d'histoires à la bibliothèque",
+      "transferAllPacks": "Transférer les packs manquants sur le périphérique"
     },
     "official": "Officiel",
     "format": {

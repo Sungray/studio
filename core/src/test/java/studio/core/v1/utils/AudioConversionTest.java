@@ -43,7 +43,7 @@ class AudioConversionTest {
             byte[] outsideOggBytes = AudioConversion.waveToOgg(outsideWavBytes);
             Path outsideOgg = Files.write(zipPath.resolveSibling("new.ogg"), outsideOggBytes);
             long outsideOggSize = Files.size(outsideOgg);
-            assertEquals(17059, outsideOggSize, "new.ogg"); */
+            assertEquals(17224, outsideOggSize, "new.ogg"); */
 
             // oldOggSize != newOggSize ???
             // assertArrayEquals(oggBytes, oggBytes2, "Ogg different");
