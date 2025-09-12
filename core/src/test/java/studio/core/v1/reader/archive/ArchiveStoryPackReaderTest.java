@@ -9,6 +9,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
@@ -138,7 +139,7 @@ class ArchiveStoryPackReaderTest {
         // write
         long tt1 = System.currentTimeMillis();
         Path zip = zipPath.resolveSibling("output-from-zip.zip");
-        writer.write(spActual, zip, true);
+        writer.write(spActual, zip, true, Optional.empty());
         long tt2 = System.currentTimeMillis();
 
         System.out.printf("writeStoryPack (%s ms)\n", tt2 - tt1);

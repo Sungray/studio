@@ -140,8 +140,8 @@ public class FsStoryTellerAsyncDriver implements StoryTellerAsyncDriver<FsDevice
 
             if (mdVersion >= 1 && mdVersion <= 4) {
                 return this.getDeviceInfosMeta1to4(infos, is);
-            } else if (mdVersion == 6) {
-                return this.getDeviceInfosMeta6(infos, is);
+            } else if (mdVersion >= 6 && mdVersion <= 7) {
+                return this.getDeviceInfosMeta6to7(infos, is, mdVersion);
             } else {
                 return CompletableFuture.failedFuture(new StoryTellerException("Unsupported device metadata format version: " + mdVersion));
             }
@@ -181,7 +181,7 @@ public class FsStoryTellerAsyncDriver implements StoryTellerAsyncDriver<FsDevice
         return CompletableFuture.completedFuture(infos);
     }
 
-    public CompletionStage<FsDeviceInfos> getDeviceInfosMeta6(FsDeviceInfos infos, DataInputStream is) throws IOException {
+    public CompletionStage<FsDeviceInfos> getDeviceInfosMeta6to7(FsDeviceInfos infos, DataInputStream is, short mdVersion) throws IOException {
         short major = DeviceUtils.readAsciiToShort(is, 1);
         is.skipBytes(1);
         short minor = DeviceUtils.readAsciiToShort(is, 1);
@@ -195,21 +195,26 @@ public class FsStoryTellerAsyncDriver implements StoryTellerAsyncDriver<FsDevice
         String serialNumber = String.format("%014d", sn);
         LOGGER.debug("Serial Number: " + serialNumber);
         infos.setSerialNumber(serialNumber);
-
-        // UUID
         byte[] snb = String.valueOf(sn).getBytes(StandardCharsets.UTF_8);
+
         is.skipBytes(24);
+
         byte[] key = is.readNBytes(32);
         byte[] deviceKey = new byte[64];
-        System.arraycopy(snb, 0, deviceKey, 0 , 14);
-        System.arraycopy(snb, 0, deviceKey, 24 , 8);
-        System.arraycopy(key, 0, deviceKey, 32 , 32);
+        if(mdVersion == 6) {
+            System.arraycopy(snb, 0, deviceKey, 0 , 14);
+            System.arraycopy(snb, 0, deviceKey, 24 , 8);
+            System.arraycopy(key, 0, deviceKey, 32 , 32);
+        } else {
+            System.arraycopy(key, 0, deviceKey, 0 , 32);
+            System.arraycopy(snb, 0, deviceKey, 32 , 14);
+            System.arraycopy(snb, 0, deviceKey, 56 , 8);
+        }
         infos.setDeviceKey(deviceKey);
 
         is.close();
         return CompletableFuture.completedFuture(infos);
     }
-
     public CompletionStage<List<FsStoryPackInfos>> getPacksList() {
         if (this.device == null || this.partitionMountPoint == null) {
             return CompletableFuture.failedFuture(noDevicePluggedException());

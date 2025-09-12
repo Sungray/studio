@@ -12,7 +12,7 @@
 
     <groupId>studio</groupId>
     <artifactId>studio-parent</artifactId>
-    <version>0.5.2</version>
+    <version>0.5.4</version>
 
     <packaging>pom</packaging>
 
@@ -70,6 +70,12 @@
             <plugin>
                <artifactId>maven-surefire-plugin</artifactId>
                <version>${mvn.surefire.version}</version>
+                <configuration>
+                    <argLine>
+                        --add-opens java.base/java.util=ALL-UNNAMED
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                    </argLine>
+                </configuration>
             </plugin>
             <plugin>
                <artifactId>maven-assembly-plugin</artifactId>

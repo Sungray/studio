@@ -27,10 +27,10 @@ public class FsStoryPackWriterV3 {
         return dataCiphered;
     }
 
-    public static void addBootFile(Path packFolder, byte[] deviceUuid) throws IOException {
+    public static void addBootFile(Path packFolder, byte[] deviceKey) throws IOException {
         Path btPath = packFolder.resolve(BOOT_FILENAME);
         byte[] btCipher = new byte[32];
-        System.arraycopy(deviceUuid, 32, btCipher, 0, 32);
+        System.arraycopy(deviceKey, 32, btCipher, 0, 32);
         Files.write(btPath, btCipher);
     }
 

@@ -37,11 +37,7 @@ public class AESCBCCipher {
         System.arraycopy(deviceKey, 0, key, 0, 16);
         System.arraycopy(deviceKey, 16, keyIV, 0, 16);
         byte[] block = Arrays.copyOfRange(data, 0, Math.min(512, data.length));
-        byte[] blockCiphered = AESCBCCipher.encrypt(
-                block,
-                key,
-                keyIV
-        );
+        byte[] blockCiphered = AESCBCCipher.encrypt(block, key, keyIV);
         byte[] dataCiphered = new byte[Math.max(data.length, blockCiphered.length)];
         System.arraycopy(blockCiphered, 0, dataCiphered, 0, blockCiphered.length);
         System.arraycopy(data, block.length, dataCiphered, blockCiphered.length, data.length - block.length);
