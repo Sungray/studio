@@ -39,6 +39,8 @@ you can [build the application](#for-developers)).
 platform. You may need to make them executable first.
 * If it does not open automatically, **open a browser** and type the url `http://localhost:8080` to load the web UI.
 
+Important: do not run scripts from `web-ui/src/main/scripts` — those files are templates and get filtered during packaging. Always run the scripts from the built distribution (zip or the `target/...-dist` directory).
+
 Note: avoid running the script as superuser/administrator, as this may create permissions issues.
 
 ### Configuration
@@ -150,12 +152,63 @@ FOR DEVELOPERS
 * Java JDK 11+
 * Maven 3+
 
-### Building the application
+### Running from IntelliJ IDEA
 
-* Clone this repository: `git clone https://github.com/marian-m12l/studio.git`
-* Build the application: `mvn clean install`
+Option A — via Maven (recommended the first time)
+- Open the project as a Maven project in IntelliJ and select JDK 11 for the project SDK.
+- In the Maven tool window, run the lifecycle goal on the web UI module once to build the frontend resources:
+  - web-ui → Lifecycle → package (or run `mvn -DskipTests -pl web-ui -am package` in the terminal)
+- Then run the app using the configured exec plugin:
+  - web-ui → Plugins → exec → exec:java
+  - Optional: add program argument `dev` to enable mock device in dev mode.
 
-This will produce the **distribution archive** in `web-ui/target/`.
+Option B — Application run configuration
+- Build once as above (package) so that `webroot` is present on the classpath.
+- Run/Debug Configurations → Add New → Application:
+  - Name: Studio (Dev)
+  - Main class: `studio.webui.TestMain`
+  - Use classpath of module: `web-ui`
+  - VM options: `-Dfile.encoding=UTF-8 -Dvertx.disableDnsResolver=true`
+  - Program arguments (optional): `dev` (enables mock device and disables auto-open browser)
+  - Working directory: project root or `web-ui`
+- Run. Open `http://localhost:8080` if the browser doesn’t auto-open.
+
+Notes
+- You can change the port/host via env vars or system properties (see Configuration section above).
+- If `exec:java` is used without packaging first, the UI may be missing; run the `package` step once to generate `webroot`.
+
+### Building and exporting a portable package
+
+This produces a self-contained zip that includes the app, dependencies, launch scripts, and a minimal Java runtime.
+
+- Clone: `git clone https://github.com/marian-m12l/studio.git`
+- Build portable package (no tests):
+  - Without bundled Java (uses system Java at runtime):
+    - Linux/macOS: `mvn -DskipTests -q -pl web-ui -am clean package`
+    - Windows: `mvn -DskipTests -pl web-ui -am clean package`
+  - With bundled Java (self-contained):
+    - Linux/macOS: `mvn -DskipTests -q -P portable-runtime -pl web-ui -am clean package`
+    - Windows: `mvn -DskipTests -P portable-runtime -pl web-ui -am clean package`
+
+Result
+- The **distribution archive** is created at `web-ui/target/studio-web-ui-<version>-dist.zip`.
+- A directory distribution is also created at `web-ui/target/studio-web-ui-<version>-dist/`.
+- Run from either location:
+  - Linux: `./studio-linux.sh`
+  - macOS: `./studio-macos.sh`
+  - Windows: `studio-windows.bat`
+- Scripts auto-use the bundled runtime (`runtime/bin/java`) if present, so no system Java is required when built with `-P portable-runtime`.
+
+Platform note
+- The bundled runtime is platform-specific; build on each target OS/architecture you plan to run on.
+
+From IntelliJ (Windows)
+- Open the Maven tool window.
+- Optional: check the `portable-runtime` profile to bundle Java.
+- Expand `web-ui` → Lifecycle → run `package`.
+- Find the zip at `web-ui/target/studio-web-ui-<version>-dist.zip`.
+- Unzip anywhere and run `studio-windows.bat`.
+
 
 
 THIRD-PARTY APPLICATIONS

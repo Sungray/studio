@@ -9,6 +9,9 @@ package studio.webui;
 import java.awt.Desktop;
 import java.net.URI;
 import java.util.Set;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -49,6 +52,8 @@ public class MainVerticle extends AbstractVerticle {
 
     @Override
     public void start() {
+        // Ensure required application directories exist when running from IDE
+        ensureAppDirectories();
         // Service that manages pack metadata
         DatabaseMetadataService databaseMetadataService = new DatabaseMetadataService();
 
@@ -110,6 +115,28 @@ public class MainVerticle extends AbstractVerticle {
                     LOGGER.error("Failed to open URL in default browser", e);
                 }
             }
+        }
+    }
+
+    private void ensureAppDirectories() {
+        try {
+            // Ensure DB parent directories
+            String officialDb = StudioConfig.STUDIO_DB_OFFICIAL.getValue();
+            String unofficialDb = StudioConfig.STUDIO_DB_UNOFFICIAL.getValue();
+            Path officialParent = Paths.get(officialDb).getParent();
+            Path unofficialParent = Paths.get(unofficialDb).getParent();
+            if (officialParent != null) {
+                Files.createDirectories(officialParent);
+            }
+            if (unofficialParent != null) {
+                Files.createDirectories(unofficialParent);
+            }
+
+            // Ensure library and tmp directories
+            Files.createDirectories(Paths.get(StudioConfig.STUDIO_LIBRARY.getValue()));
+            Files.createDirectories(Paths.get(StudioConfig.STUDIO_TMPDIR.getValue()));
+        } catch (Exception e) {
+            LOGGER.warn("Failed to create app directories", e);
         }
     }
 

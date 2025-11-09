@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="STUdio (Launcher)" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="io.vertx.core.Launcher" />
+    <module name="studio-core" />
+    <option name="PROGRAM_PARAMETERS" value="run studio.webui.MainVerticle" />
+    <shortenClasspath name="ARGS_FILE" />
+    <option name="VM_PARAMETERS" value="-Dfile.encoding=UTF-8 -Dvertx.disableDnsResolver=true --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED" />
+    <envs>
+      <env name="STUDIO_OPEN_BROWSER" value="false" />
+    </envs>
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/web-ui" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

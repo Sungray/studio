@@ -10,6 +10,7 @@
 
     <formats>
         <format>zip</format>
+        <format>dir</format>
     </formats>
 
     <dependencySets>
@@ -28,6 +29,15 @@
             <includes>
                 <include>${project.build.finalName}.jar</include>
             </includes>
+        </fileSet>
+        <!-- Bundle a minimal JRE built with jlink if present -->
+        <fileSet>
+            <directory>${project.build.directory}/runtime</directory>
+            <outputDirectory>runtime</outputDirectory>
+            <includes>
+                <include>**/*</include>
+            </includes>
+            <useDefaultExcludes>false</useDefaultExcludes>
         </fileSet>
         <fileSet>
             <directory>${project.build.scriptSourceDirectory}</directory>
