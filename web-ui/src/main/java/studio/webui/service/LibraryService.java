@@ -84,12 +84,7 @@ public class LibraryService {
 
             // Group pack by uuid
             Map<String, List<LibraryPack>> metadataByUuid = paths
-                    // debuging
-                    .filter(p -> {
-                        LOGGER.info("Read metadata from `{}`", p.getFileName());
-                        return true;
-                    })
-                    // actual read
+                    // Read metadata for supported items only
                     .map(this::readMetadata)
                     // filter empty
                     .filter(Optional::isPresent).map(Optional::get)

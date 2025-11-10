@@ -151,14 +151,18 @@ export const actionAddFromLibrary = (uuid, path, format, driver, context, t) => 
                     addFromLibrary(uuid, path)
                         .then(resp => {
                                 let transferId = resp.transferId;
-                                context.eventBus.registerHandler(`storyteller.transfer.${transferId}.progress`, (error, message) => {
-                                    if (message.body.progress < 1) {
+                                const progressAddr = `storyteller.transfer.${transferId}.progress`;
+                                const doneAddr = `storyteller.transfer.${transferId}.done`;
+                                const progressHandler = (error, message) => {
+                                    if (message && message.body && message.body.progress < 1) {
                                         toast.update(toastId, {progress: message.body.progress, autoClose: false});
                                     }
-                                });
-
-                                context.eventBus.registerHandler(`storyteller.transfer.${transferId}.done`, (error, message) => {
-                                    if (message.body.success) {
+                                };
+                                const doneHandler = (error, message) => {
+                                    // Unregister handlers as soon as we finish
+                                    try { context.eventBus.unregisterHandler(progressAddr, progressHandler); } catch(e) {}
+                                    try { context.eventBus.unregisterHandler(doneAddr, doneHandler); } catch(e) {}
+                                    if (message && message.body && message.body.success) {
                                         toast.update(toastId, {progress: null, type: toast.TYPE.SUCCESS, render: t('toasts.device.added'), autoClose: 5000});
                                         dispatch(actionRefreshDevice(t));
                                         resolve();
@@ -166,7 +170,10 @@ export const actionAddFromLibrary = (uuid, path, format, driver, context, t) => 
                                         toast.update(toastId, {progress: null, type: toast.TYPE.ERROR, render: <IssueReportToast content={<>{t('toasts.device.addingFailed')}</>} />, autoClose: false });
                                         reject(new Error('Transfer failed'));
                                     }
-                                });
+                                };
+
+                                context.eventBus.registerHandler(progressAddr, progressHandler);
+                                context.eventBus.registerHandler(doneAddr, doneHandler);
                         })
                         .catch(e => {
                                 console.error('failed to add pack to device', e);
@@ -248,17 +255,17 @@ export const actionAddToLibrary = (uuid, driver, context, t) => {
                     .then(resp => {
                         // Monitor transfer progress
                         let transferId = resp.transferId;
-                        context.eventBus.registerHandler('storyteller.transfer.'+transferId+'.progress', (error, message) => {
-                            console.log("Received `storyteller.transfer."+transferId+".progress` event from vert.x event bus.");
-                            console.log(message.body);
-                            if (message.body.progress < 1) {
+                        const progressAddr = 'storyteller.transfer.'+transferId+'.progress';
+                        const doneAddr = 'storyteller.transfer.'+transferId+'.done';
+                        const progressHandler = (error, message) => {
+                            if (message && message.body && message.body.progress < 1) {
                                 toast.update(toastId, {progress: message.body.progress, autoClose: false});
                             }
-                        });
-                        context.eventBus.registerHandler('storyteller.transfer.'+transferId+'.done', (error, message) => {
-                            console.log("Received `storyteller.transfer."+transferId+".done` event from vert.x event bus.");
-                            console.log(message.body);
-                            if (message.body.success) {
+                        };
+                        const doneHandler = (error, message) => {
+                            try { context.eventBus.unregisterHandler(progressAddr, progressHandler); } catch(e) {}
+                            try { context.eventBus.unregisterHandler(doneAddr, doneHandler); } catch(e) {}
+                            if (message && message.body && message.body.success) {
                                 toast.update(toastId, {progress: null, type: toast.TYPE.SUCCESS, render: t('toasts.library.added'), autoClose: 5000});
                                 // Refresh device metadata and packs list
                                 dispatch(actionRefreshLibrary(t));
@@ -267,7 +274,9 @@ export const actionAddToLibrary = (uuid, driver, context, t) => {
                             }
                             // Always release the mutex
                             release();
-                        });
+                        };
+                        context.eventBus.registerHandler(progressAddr, progressHandler);
+                        context.eventBus.registerHandler(doneAddr, doneHandler);
                     })
                     .catch(e => {
                         console.error('failed to add pack to library', e);

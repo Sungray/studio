@@ -50,38 +50,45 @@ public class ArchiveStoryPackReader implements StoryPackReader {
     private static final Logger LOGGER = LogManager.getLogger(ArchiveStoryPackReader.class);
 
     public StoryPackMetadata readMetadata(Path zipPath) throws IOException {
-        // Zip archive contains a json file and separate assets
-        try (FileSystem zipFs = FileSystems.newFileSystem(zipPath, ClassLoader.getSystemClassLoader())) {
+        // Fast path for metadata: use ZipFile to avoid mounting a filesystem
+        java.util.zip.ZipFile zip = new java.util.zip.ZipFile(zipPath.toFile());
+        try {
             // Pack metadata model
             StoryPackMetadata metadata = new StoryPackMetadata(PackFormat.ARCHIVE);
             // Story descriptor file: story.json
-            Path story = zipFs.getPath("story.json");
-            if (Files.notExists(story)) {
+            java.util.zip.ZipEntry storyEntry = zip.getEntry("story.json");
+            if (storyEntry == null) {
                 return null;
             }
-            JsonObject root = JsonParser.parseString(Files.readString(story)).getAsJsonObject();
+            try (java.io.InputStream is = zip.getInputStream(storyEntry)) {
+                String json = new String(is.readAllBytes());
+                JsonObject root = JsonParser.parseString(json).getAsJsonObject();
 
-            // Read metadata
-            metadata.setVersion(root.get("version").getAsShort());
-            Optional.ofNullable(root.get("title")).filter(JsonElement::isJsonPrimitive)
-                    .ifPresent(title -> metadata.setTitle(title.getAsString()));
-            Optional.ofNullable(root.get("description")).filter(JsonElement::isJsonPrimitive)
-                    .ifPresent(desc -> metadata.setDescription(desc.getAsString()));
-            // TODO Thumbnail?
+                // Read metadata
+                metadata.setVersion(root.get("version").getAsShort());
+                Optional.ofNullable(root.get("title")).filter(JsonElement::isJsonPrimitive)
+                        .ifPresent(title -> metadata.setTitle(title.getAsString()));
+                Optional.ofNullable(root.get("description")).filter(JsonElement::isJsonPrimitive)
+                        .ifPresent(desc -> metadata.setDescription(desc.getAsString()));
 
-            // Night mode
-            metadata.setNightModeAvailable(
-                    Optional.ofNullable(root.get("nightModeAvailable")).map(JsonElement::getAsBoolean).orElse(false));
+                // Night mode
+                metadata.setNightModeAvailable(
+                        Optional.ofNullable(root.get("nightModeAvailable")).map(JsonElement::getAsBoolean).orElse(false));
 
-            // Read first stage node
-            JsonObject mainStageNode = root.getAsJsonArray("stageNodes").get(0).getAsJsonObject();
-            metadata.setUuid(mainStageNode.get("uuid").getAsString());
-            // Pack thumbnail
-            Path thumb = zipFs.getPath("thumbnail.png");
-            if (Files.exists(thumb)) {
-                metadata.setThumbnail(Files.readAllBytes(thumb));
+                // Read first stage node
+                JsonObject mainStageNode = root.getAsJsonArray("stageNodes").get(0).getAsJsonObject();
+                metadata.setUuid(mainStageNode.get("uuid").getAsString());
+            }
+            // Pack thumbnail (optional)
+            java.util.zip.ZipEntry thumbEntry = zip.getEntry("thumbnail.png");
+            if (thumbEntry != null) {
+                try (java.io.InputStream is = zip.getInputStream(thumbEntry)) {
+                    metadata.setThumbnail(is.readAllBytes());
+                }
             }
             return metadata;
+        } finally {
+            try { zip.close(); } catch (IOException ignored) {}
         }
     }
 

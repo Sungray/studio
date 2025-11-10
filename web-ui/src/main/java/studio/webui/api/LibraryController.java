@@ -83,9 +83,8 @@ public class LibraryController {
             Boolean allowEnriched = body.getBoolean("allowEnriched", false);
             String format = body.getString("format");
 
-            // Perform conversion/uncompression asynchronously
-            WorkerExecutor executor = vertx.createSharedWorkerExecutor("pack-converter", 1, 20, TimeUnit.MINUTES);
-            executor.executeBlocking( //
+            // Perform conversion/uncompression asynchronously using the default worker pool (allows parallelism)
+            vertx.executeBlocking( //
                     future -> {
                         try {
                             PackFormat packFormat = PackFormat.valueOf(format.toUpperCase());
@@ -94,7 +93,7 @@ public class LibraryController {
                         } catch (IllegalArgumentException | StoryTellerException e) {
                             future.fail(e);
                         }
-                    }, //
+                    }, false, // not ordered -> conversions can run in parallel
                     res -> {
                         if (res.succeeded()) {
                             // Return path to converted file within library

@@ -19,6 +19,7 @@ import org.apache.logging.log4j.Logger;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpServerOptions;
 import io.vertx.core.http.HttpMethod;
 import io.vertx.ext.bridge.BridgeEventType;
 import io.vertx.ext.bridge.PermittedOptions;
@@ -91,7 +92,9 @@ public class MainVerticle extends AbstractVerticle {
         router.mountSubRouter("/api", apiRouter());
 
         // Static resources (/webroot)
-        router.route().handler(StaticHandler.create().setCachingEnabled(false));
+        // Enable caching in production to improve frontend performance
+        boolean cacheStatic = !isDevMode();
+        router.route().handler(StaticHandler.create().setCachingEnabled(cacheStatic));
 
         // Error handler
         ErrorHandler errorHandler = ErrorHandler.create(vertx, true);
@@ -101,8 +104,9 @@ public class MainVerticle extends AbstractVerticle {
             errorHandler.handle(ctx);
         });
 
-        // Start HTTP server
-        vertx.createHttpServer().requestHandler(router).listen(port);
+        // Start HTTP server (enable compression to speed up large JSON/static responses)
+        HttpServerOptions serverOptions = new HttpServerOptions().setCompressionSupported(true);
+        vertx.createHttpServer(serverOptions).requestHandler(router).listen(port);
 
         // Automatically open URL in browser, unless instructed otherwise
         String openBrowser = StudioConfig.STUDIO_OPEN_BROWSER.getValue();
